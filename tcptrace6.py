@@ -4,6 +4,7 @@ import sys
 from scapy.all import *
 import argparse
 import socket
+import time
 
 
 def resolve_name(hostname):
@@ -42,7 +43,9 @@ def tcp_traceroute_ipv6(
         )
         try:
             # Send the packet and receive the response
+            start_time = time.time()
             ans, _ = sr(pkt, timeout=2, verbose=0, iface=iface)
+            end_time = time.time()
         except PermissionError:
             print(
                 "You need to run this script as root or with administrator privileges."
@@ -53,15 +56,16 @@ def tcp_traceroute_ipv6(
         target_resolved = resolve_name(target)
         if ans:
             reply = ans[0][1]
+            rtt = (end_time - start_time) * 1000 # RTT in milliseconds
             resolved_ip = resolve_ip(reply.src)
             if reply.src == target or reply.src == target_resolved:
                 BREAK = True
             if reply.haslayer(ICMPv6TimeExceeded):
-                print(f"{ttl}: {resolved_ip}")
+                print(f"{ttl}: {resolved_ip}, RTT: {rtt:.2f} ms")
                 if BREAK:
                     break
             elif reply.haslayer(TCP) and (reply[TCP].flags & 0x3F) == 0x12:
-                print(f"{ttl}: {resolved_ip}")
+                print(f"{ttl}: {resolved_ip}, RTT: {rtt:.2f} ms")
                 break
             else:
                 print(f"{ttl}: Unexpected reply")
