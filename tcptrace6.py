@@ -5,6 +5,15 @@ from scapy.all import *
 import argparse
 import socket
 
+
+def resolve_name(hostname):
+    try:
+        result = socket.getaddrinfo(hostname,None, socket.AF_INET6)
+        return result[0][4][0]
+    except socket.herror:
+        return None
+
+
 def resolve_ip(ip_address):
     try:
         host, _, _ = socket.gethostbyaddr(ip_address)
@@ -12,7 +21,10 @@ def resolve_ip(ip_address):
     except socket.herror:
         return ip_address
 
-def tcp_traceroute_ipv6(target, dport=80, max_hops=30, packet_size=64, use_ack=False, iface=None):
+
+def tcp_traceroute_ipv6(
+    target, dport=80, max_hops=30, packet_size=64, use_ack=False, iface=None
+):
     if packet_size < 64 or packet_size > 1500:
         print("Invalid packet size. Packet size must be between 64 and 1500 bytes.")
         return
@@ -22,9 +34,11 @@ def tcp_traceroute_ipv6(target, dport=80, max_hops=30, packet_size=64, use_ack=F
     )  # 40 bytes for IPv6 header, 20 bytes for TCP header
     padding = b"\x00" * padding_size
     for ttl in range(1, max_hops + 1):
-        tcp_flags = 'A' if use_ack else 'S'
+        tcp_flags = "A" if use_ack else "S"
         pkt = (
-            IPv6(dst=target, hlim=ttl) / TCP(dport=dport, flags=tcp_flags) / Raw(load=padding)
+            IPv6(dst=target, hlim=ttl)
+            / TCP(dport=dport, flags=tcp_flags)
+            / Raw(load=padding)
         )
         try:
             # Send the packet and receive the response
@@ -35,11 +49,17 @@ def tcp_traceroute_ipv6(target, dport=80, max_hops=30, packet_size=64, use_ack=F
             )
             sys.exit(1)
 
+        BREAK = False
+        target_resolved = resolve_name(target)
         if ans:
             reply = ans[0][1]
             resolved_ip = resolve_ip(reply.src)
+            if reply.src == target or reply.src == target_resolved:
+                BREAK = True
             if reply.haslayer(ICMPv6TimeExceeded):
                 print(f"{ttl}: {resolved_ip}")
+                if BREAK:
+                    break
             elif reply.haslayer(TCP) and (reply[TCP].flags & 0x3F) == 0x12:
                 print(f"{ttl}: {resolved_ip}")
                 break
@@ -69,9 +89,10 @@ def main():
         default=30,
         help="Maximum number of hops (default: 30)",
     )
-    parser.add_argument('-a', '--ack', action='store_true', help='Use ACK flag instead of SYN')
-    parser.add_argument('-i', '--iface', help='Specify network interface')
-
+    parser.add_argument(
+        "-a", "--ack", action="store_true", help="Use ACK flag instead of SYN"
+    )
+    parser.add_argument("-i", "--iface", help="Specify network interface")
 
     args = parser.parse_args()
 
@@ -80,7 +101,12 @@ def main():
         sys.exit(1)
 
     tcp_traceroute_ipv6(
-        args.host, dport=args.port, max_hops=args.max_hops, packet_size=args.size,use_ack=args.ack, iface=args.iface
+        args.host,
+        dport=args.port,
+        max_hops=args.max_hops,
+        packet_size=args.size,
+        use_ack=args.ack,
+        iface=args.iface,
     )
 
 
