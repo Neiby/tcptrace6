@@ -1,10 +1,10 @@
 #!/usr/local/bin/python3
 
 import sys
-from scapy.all import *
 import argparse
 import socket
 import time
+from scapy.all import *
 
 
 def resolve_name(hostname):
