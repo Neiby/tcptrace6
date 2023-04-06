@@ -3,4 +3,4 @@ Python tcptraceroute tool with ipv6 support, since the original `tcptraceroute` 
 
 ### USAGE
 
-`tcptrace6.py <host> [-p <port>] [-s <size>]`
+`tcptrace6.py <host> [-p <port>] [-s <size>] [-a] [-i <network_interface>]`
